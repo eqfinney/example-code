@@ -6,74 +6,100 @@
 # I had to look up what an Abstract Syntax Tree is, too.
 #
 
-# parse it character by character I suppose
-# if there's not whitespace or a parenthesis, save as a character
-# if there's whitespace, it's a new character
-# if there's a parenthesis, start a new list and the next character goes into it
-
 def parse_lisp(example_lisp):
     """ This function takes a string and turns it into an abstract syntax tree.
         Input: example_lisp, a string containing lisp code
         Output: a list containing lists in a structured order (aka, an AST)
     """
     # initialize empty objects
-    # n counts all characters in the input string
     # word denotes the current word, separating by parentheses and whitespace
-    # newobj is the abstract syntax tree
-    n = 0
-    nleftparen = 0
-    nrightparen = 0
+    # current_list is the abstract syntax tree
     word = ''
-    newobj = []
-    # loop through all characters in the input string
-    for n in range(len(example_lisp)+1):
-        print(n)
-        print(newobj)
-        # test to see if the input string is empty
-        # if it is, return the object
-        if n == len(example_lisp):
+    current_list = []
+
+    # base case: empty string
+    # recursive case: involves parentheses
+    pos = 0
+
+    while pos != len(example_lisp):
+        char = example_lisp[pos]
+
+        # test to see if the character is finishing a branch of the AST
+        # if it is, return the results
+        if (char == ')'):
             if word != '':
-                newobj.append(word)
-                word = ''
-            return newobj
-        else: 
-            char = example_lisp[n]
-            # test to see if the character is ending a branch of the AST
-            # if it does, add the current word to the AST and return the tree
-            # the "return to the tree" is the hard part of this apparently
-            if char == ')':
-                newobj.append(word)
-                return newobj
-            # test to see if the character is whitespace
-            # if it is, add current word to the AST and move on to next character
-            elif char == ' ':
-                newobj.append(word)
-                word = ''
-                n = n+1
-            # test to see if the character is starting a branch of the AST
-            # if it is, recurse over the remaining AST
-            elif char == '(':
-                # save all the things until you get to the correct )
-                # then recurse on that string
-                nleftparen = nleftparen+1
-                m = 0
-                newstring = example_lisp[(n+1):]
-                # search your new string until you get the correct )
-                while nleftparen != nrightparen:
-                    if newstring[m] == '(':
-                        nleftparen = nleftparen + 1
-                        m = m + 1
-                    elif newstring[m] == ')':
-                        nrightparen = nrightparen + 1
-                        m = m+1
-                    else:
-                        m = m+1
-                newobj.append(parse_lisp(newstring[0:m]))
-                word = ''
-                n = n+len(newstring[0:m])
-            else:
-                word = word + char
-                n = n+1
+                current_list.append(word)
+            return current_list
 
-    return newobj
+        # test to see if the character is starting a branch of the AST
+        # if it is, recurse over the remaining AST
+        elif char == '(':
+            new_list = parse_lisp(example_lisp[(pos+1):])
+            current_list.append(new_list)
+            # have to update the pointer by the length of the string
+            # up until the correct right paren
+            # which means you have to find the correct right paren
+            paren_pos = find_correct_right_paren(example_lisp[(pos+1):])
+            # add the length of the string, plus two for the
+            # left paren and right paren denoting the branch
+            pos = pos + paren_pos + 2
+            
+        # test to see if the character is finishing a word
+        # if it is, add the word to the current list
+        elif char == ' ':
+            if word != '':
+                current_list.append(word)
+            word = ''
+            pos = pos + 1
 
+        # otherwise, add the character to the current word
+        else:
+            word = word + char
+            pos = pos + 1
+
+    # make sure we add the final word, if current_list has not been updated
+    if word != '':
+        current_list.append(word)
+
+    return current_list
+
+def find_correct_right_paren(paren_string):
+    """ Finds the position of the corresponding right parenthesis
+        Input: paren_string, the string for which we want the right paren
+               note: the left paren has already been removed from
+               paren_string and counted
+        Output: the position of the corresponding right paren
+    """
+    # note: the left paren has been counted already
+    nleftparen = 1
+    nrightparen = 0
+
+    for pos, char in enumerate(paren_string):
+        
+        # count the number of left parens
+        if char == '(':
+            nleftparen = nleftparen + 1
+
+        # count the number of right parens
+        elif char == ')':
+            nrightparen = nrightparen + 1
+
+        # return the correct position, if they're equal
+        if nleftparen == nrightparen:
+            return pos
+
+    # raise an error if they are never equal
+    raise ValueError("Error: There is no matching right paren")
+
+
+"""
+TEST CASES
+This is for my own benefit.
+'()' should return [[]]
+'+ 1 2' should return ['+', '1', '2']
+'+ (+ 3 5) (+ 2 4)' should return ['+', ['+', '3', '5'], ['+', '2', '4']]
+'' should return []
+'+ (+ 1 (+ 1 1))' should return ['+', ['+', '1', ['+', '1', '1']]]
+'+ (+ 4 6) 7' should return ['+', ['+', '4', '6'], '7']
+'(+ 1 2)' should return [['+', '1', '2']]
+"""
